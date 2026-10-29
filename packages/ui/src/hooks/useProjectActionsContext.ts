@@ -55,8 +55,9 @@ export function useProjectActionsContext(): ProjectActionsContext | null {
   const worktreesByProject = useSessionUIStore((state) => state.availableWorktreesByProject);
 
   const currentSessionId = useSessionUIStore((state) => state.currentSessionId);
+  const selectedSessionDirectory = useSessionUIStore((state) => state.currentSessionDirectory);
   // The directory alone: the whole record changes on every streamed step.
-  const currentSessionDirectory = useSessionDirectory(currentSessionId ?? null);
+  const currentSessionDirectory = useSessionDirectory(currentSessionId ?? null, selectedSessionDirectory ?? undefined);
 
   const worktreePath = useSessionUIStore((state) => {
     if (!currentSessionId) return '';
@@ -75,8 +76,8 @@ export function useProjectActionsContext(): ProjectActionsContext | null {
 
   const worktreeDirectory = React.useMemo(() => normalize(worktreePath || ''), [worktreePath]);
   const sessionDirectory = React.useMemo(
-    () => normalize(currentSessionDirectory || ''),
-    [currentSessionDirectory],
+    () => normalize(currentSessionDirectory || (currentSessionId ? selectedSessionDirectory : '') || ''),
+    [currentSessionDirectory, currentSessionId, selectedSessionDirectory],
   );
 
   const openDirectory = worktreeDirectory || sessionDirectory || draftDirectory;

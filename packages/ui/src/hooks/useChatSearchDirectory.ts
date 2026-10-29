@@ -10,8 +10,8 @@ import { useSessionDirectory } from '@/sync/sync-context';
 export const useChatSearchDirectory = (): string | undefined => {
   // Inside a chat the session is its column's, so a chat pinned in the side
   // panel searches its own session's project.
-  const { sessionId: currentSessionId } = useChatSessionSelection();
-  const currentSessionOwnDirectory = useSessionDirectory(currentSessionId);
+  const { sessionId: currentSessionId, directory: selectedSessionDirectory } = useChatSessionSelection();
+  const currentSessionOwnDirectory = useSessionDirectory(currentSessionId, selectedSessionDirectory ?? undefined);
   const worktreeAttachment = useSessionWorktreeStore((state) =>
     currentSessionId ? state.getAttachment(currentSessionId) : undefined
   );
@@ -34,6 +34,9 @@ export const useChatSearchDirectory = (): string | undefined => {
     const worktreeMetadata = worktreeMap.get(currentSessionId);
     if (worktreeMetadata?.path) {
       return worktreeMetadata.path;
+    }
+    if (selectedSessionDirectory) {
+      return selectedSessionDirectory;
     }
   }
 

@@ -1,5 +1,6 @@
 import { DirectoryActionIndicator } from './DirectoryActionIndicator';
 import { formatShortcutForDisplay, getEffectiveShortcutCombo } from '@/lib/shortcuts';
+import { resolveGlobalSessionDirectory } from '@/stores/useGlobalSessionsStore';
 import { useSessionTurnActivity } from '@/sync/global-session-status';
 import { getSessionActivityTime } from '@/sync/session-ordering';
 import React from 'react';
@@ -455,7 +456,7 @@ function SessionNodeItemComponent(props: SessionNodeItemProps): React.ReactNode 
   const runOverviewOpen = useUIStore((state) => state.runOverviewKey !== null);
   const isActive = isCurrentSession && !runOverviewOpen;
 
-  const sessionDirectory = normalizePath(session.directory ?? null) ?? normalizePath(groupDirectory ?? null);
+  const sessionDirectory = normalizePath(resolveGlobalSessionDirectory(session)) ?? normalizePath(groupDirectory ?? null);
   const sessionProjectId = ownerProjectId === undefined ? projectId : ownerProjectId;
   // A nested cross-project row uses its own repository for Tracker links.
   // The project root also resolves before the live worktree map arrives.
