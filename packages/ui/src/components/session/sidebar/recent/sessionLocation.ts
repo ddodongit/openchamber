@@ -1,6 +1,7 @@
 import type { Session } from '@/lib/opencode/model';
 import type { WorktreeMetadata } from '@/types/worktree';
 import type { DirectoryOwner } from '../sessions/sessionOwnership';
+import { resolveGlobalSessionDirectory } from '@/stores/useGlobalSessionsStore';
 import { formatDirectoryName } from '@/lib/utils';
 import { formatProjectLabel, normalizePath } from '../utils';
 import { buildWorktreeByPathIndex, findPrefixWorktreeEntry, resolveBranchLiveFirst } from '../worktreeIndex';
@@ -72,7 +73,7 @@ export const resolveSidebarSessionLocations = ({
   // resolve pass; the longest-prefix walk below reuses it for subdirectories.
   const worktreeByPath = buildWorktreeByPathIndex(availableWorktreesByProject, projects);
   for (const session of sessions) {
-    const directory = normalizePath(session.directory ?? null);
+    const directory = normalizePath(resolveGlobalSessionDirectory(session));
     if (!directory) continue;
     const indexedOwner = ownerBySessionId.get(session.id) ?? null;
     const indexedOwnerId = indexedOwner?.projectId ?? null;

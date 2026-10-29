@@ -2,6 +2,7 @@ import type { ProjectEntry } from "@/lib/api/types";
 import type { WorktreeMetadata } from "@/types/worktree";
 
 import { normalizePath } from "@/lib/pathNormalization";
+import { spaceIdOfDirectory } from "@/lib/spaces/space-route";
 import { spaceProjectDirectoryOf } from "@/lib/spaces/spaces-store";
 export const normalizeProjectPath = normalizePath;
 
@@ -78,4 +79,93 @@ export const resolveProjectForSessionDirectory = (
   return worktreeResolution.matchedWorktreePathLength > directPathLength
     ? worktreeResolution.project
     : directProject;
+};
+
+const formatDirectoryBasename = (directory: string | null): string | null => {
+  const normalizedPath = normalizeProjectPath(directory);
+  if (!normalizedPath) {
+    return null;
+  }
+  if (normalizedPath === '/') {
+    return '/';
+  }
+  const segments = normalizedPath.split('/').filter(Boolean);
+  return segments[segments.length - 1] ?? null;
+};
+
+const formatProjectEntryLabel = (project: ProjectEntry): string | null => {
+  const trimmedLabel = project.label?.trim();
+  if (trimmedLabel) {
+    return trimmedLabel;
+  }
+  return formatDirectoryBasename(project.path);
+};
+
+interface ResolveProjectLabelInput {
+  projects: ProjectEntry[];
+  availableWorktreesByProject: Map<string, WorktreeMetadata[]>;
+  directory: string | null;
+  spaceProjectDirectory?: string | null;
+  activeProjectId?: string | null;
+  isDraftOpen?: boolean;
+  draftTarget?: 'project' | 'chat';
+  draftProjectId?: string | null;
+}
+
+/**
+ * Resolves the project label for the header or work-status surface from the
+ * session/draft directory first, falling back to the directory's folder name
+ * when a concrete directory is not registered as a project in this window, and
+ * only using `activeProjectId` when no directory is open.
+ */
+export const resolveProjectLabelForDirectory = ({
+  projects,
+  availableWorktreesByProject,
+  directory,
+  spaceProjectDirectory,
+  activeProjectId = null,
+  isDraftOpen = false,
+  draftTarget = 'project',
+  draftProjectId = null,
+}: ResolveProjectLabelInput): string | null => {
+  if (isDraftOpen) {
+    if (draftTarget === 'chat') {
+      return null;
+    }
+    if (draftProjectId) {
+      const draftProject = projects.find((project) => project.id === draftProjectId) ?? null;
+      if (draftProject) {
+        return formatProjectEntryLabel(draftProject);
+      }
+    }
+  }
+
+  const normalizedDirectory = normalizeProjectPath(directory);
+  if (normalizedDirectory) {
+    const resolvedSpaceProjectDirectory = spaceProjectDirectory !== undefined
+      ? spaceProjectDirectory
+      : spaceProjectDirectoryOf(normalizedDirectory);
+    const ownerProject = resolveProjectForSessionDirectory(
+      projects,
+      availableWorktreesByProject,
+      normalizedDirectory,
+      resolvedSpaceProjectDirectory,
+    );
+    if (ownerProject) {
+      return formatProjectEntryLabel(ownerProject);
+    }
+    if (spaceIdOfDirectory(normalizedDirectory) !== null) {
+      return resolvedSpaceProjectDirectory ? formatDirectoryBasename(resolvedSpaceProjectDirectory) : null;
+    }
+    return formatDirectoryBasename(normalizedDirectory);
+  }
+
+  if (activeProjectId) {
+    const activeProject = projects.find((project) => project.id === activeProjectId) ?? null;
+    if (activeProject) {
+      return formatProjectEntryLabel(activeProject);
+    }
+  }
+
+  return null;
 };

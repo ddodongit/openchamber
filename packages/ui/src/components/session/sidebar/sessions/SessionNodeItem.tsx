@@ -1,4 +1,5 @@
 import { DirectoryActionIndicator } from './DirectoryActionIndicator';
+import { resolveGlobalSessionDirectory } from '@/stores/useGlobalSessionsStore';
 import { useSessionTurnActivity } from '@/sync/global-session-status';
 import { getSessionActivityTime } from '@/sync/session-ordering';
 import React from 'react';
@@ -443,7 +444,7 @@ function SessionNodeItemComponent(props: SessionNodeItemProps): React.ReactNode 
   const runOverviewOpen = useUIStore((state) => state.runOverviewKey !== null);
   const isActive = isCurrentSession && !runOverviewOpen;
 
-  const sessionDirectory = normalizePath(session.directory ?? null) ?? normalizePath(groupDirectory ?? null);
+  const sessionDirectory = normalizePath(resolveGlobalSessionDirectory(session)) ?? normalizePath(groupDirectory ?? null);
   // Ref chips open their item in the Tracker through the row's project. The
   // project's root path resolves without the live worktree map, which a
   // session in a worktree outside the root does not until that map arrives.

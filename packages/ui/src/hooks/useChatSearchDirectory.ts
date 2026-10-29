@@ -32,8 +32,9 @@ export const useChatSearchDirectory = (): string | undefined => {
       return worktreeMetadata.path;
     }
 
-    if (currentSessionOwnDirectory) {
-      return currentSessionOwnDirectory;
+    const resolvedSessionDirectory = currentSessionOwnDirectory || currentSessionDirectory;
+    if (resolvedSessionDirectory) {
+      return resolvedSessionDirectory;
     }
   }
 

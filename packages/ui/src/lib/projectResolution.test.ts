@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { resolveProjectForSessionDirectory } from './projectResolution';
+import {
+  resolveProjectForSessionDirectory,
+  resolveProjectLabelForDirectory,
+} from './projectResolution';
 import { useSpacesStore } from './spaces/spaces-store';
 
 const projects = [
@@ -56,5 +59,60 @@ describe('resolveProjectForSessionDirectory', () => {
     } finally {
       useSpacesStore.setState(initial, true);
     }
+  });
+});
+
+describe('resolveProjectLabelForDirectory', () => {
+  const configuredProjects = [
+    { id: 'alpha', path: '/workspace/alpha', label: 'alpha' },
+    { id: 'beta', path: '/workspace/beta', label: 'beta' },
+  ];
+
+  test('resolves the owning project label from the session directory instead of activeProjectId', () => {
+    expect(resolveProjectLabelForDirectory({
+      projects: configuredProjects,
+      availableWorktreesByProject: new Map(),
+      directory: '/workspace/beta',
+      activeProjectId: 'alpha',
+    })).toBe('beta');
+  });
+
+  test('falls back to the directory folder name when the session directory is not in projects', () => {
+    expect(resolveProjectLabelForDirectory({
+      projects: [configuredProjects[0]],
+      availableWorktreesByProject: new Map(),
+      directory: '/workspace/beta',
+      activeProjectId: 'alpha',
+    })).toBe('beta');
+  });
+
+  test('uses activeProjectId only when no session or draft directory is present', () => {
+    expect(resolveProjectLabelForDirectory({
+      projects: configuredProjects,
+      availableWorktreesByProject: new Map(),
+      directory: null,
+      activeProjectId: 'alpha',
+    })).toBe('alpha');
+  });
+
+  test('respects draftProjectId and chat draft target when a draft is open', () => {
+    expect(resolveProjectLabelForDirectory({
+      projects: configuredProjects,
+      availableWorktreesByProject: new Map(),
+      directory: '/workspace/alpha',
+      activeProjectId: 'alpha',
+      isDraftOpen: true,
+      draftTarget: 'project',
+      draftProjectId: 'beta',
+    })).toBe('beta');
+
+    expect(resolveProjectLabelForDirectory({
+      projects: configuredProjects,
+      availableWorktreesByProject: new Map(),
+      directory: '/workspace/alpha',
+      activeProjectId: 'alpha',
+      isDraftOpen: true,
+      draftTarget: 'chat',
+    })).toBeNull();
   });
 });

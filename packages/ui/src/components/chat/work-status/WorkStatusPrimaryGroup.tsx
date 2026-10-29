@@ -10,7 +10,7 @@ import { useSessionMessages } from '@/sync/sync-context';
 import { useContextWindowLimits } from '@/hooks/useContextWindowLimits';
 import { useUIStore } from '@/stores/useUIStore';
 import { useProjectsStore } from '@/stores/useProjectsStore';
-import { resolveProjectForSessionDirectory } from '@/lib/projectResolution';
+import { resolveProjectLabelForDirectory } from '@/lib/projectResolution';
 import { useSpaceProjectDirectory } from '@/lib/spaces/spaces-store';
 import { useDraftSpaceTarget } from '@/lib/spaces/useDraftSpaceTarget';
 import { panelContentDirectory } from '@/lib/spaces/space-creation-requests';
@@ -171,18 +171,12 @@ export const WorkStatusPrimaryGroup: React.FC<Props> = ({ sessionId, directory, 
   // session-directory resolver, which consults the discovered worktree map.
   const spaceProjectDirectory = useSpaceProjectDirectory(directory);
   const projectLabel = useProjectsStore(
-    React.useCallback((state) => {
-      const project = resolveProjectForSessionDirectory(
-        state.projects,
-        availableWorktreesByProject,
-        directory,
-        spaceProjectDirectory,
-      );
-      if (!project) return null;
-      return project.label?.trim()
-        || project.path.split('/').filter(Boolean).pop()
-        || project.path;
-    }, [availableWorktreesByProject, directory, spaceProjectDirectory]),
+    React.useCallback((state) => resolveProjectLabelForDirectory({
+      projects: state.projects,
+      availableWorktreesByProject,
+      directory,
+      spaceProjectDirectory,
+    }), [availableWorktreesByProject, directory, spaceProjectDirectory]),
   );
 
   // Read-only: PR watching is owned by the background tracker. Starting a watch

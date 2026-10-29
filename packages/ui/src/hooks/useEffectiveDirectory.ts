@@ -78,9 +78,9 @@ const pickEffectiveDirectory = ({
 export const useEffectiveDirectory = (): string | undefined => {
     // Inside a chat column the session is the column's: a chat pinned in the
     // side panel resolves its own session's directory, not the main chat's.
-    const currentSessionId = useChatSessionSelection().sessionId;
+    const { sessionId: currentSessionId, directory: selectedSessionDirectory } = useChatSessionSelection();
     const newSessionDraft = useSessionUIStore((s) => s.newSessionDraft);
-    const currentSessionDirectory = useSessionDirectory(currentSessionId);
+    const currentSessionDirectory = useSessionDirectory(currentSessionId, selectedSessionDirectory ?? undefined);
     const worktreeAttachment = useSessionWorktreeStore((s) => currentSessionId ? s.getAttachment(currentSessionId) : undefined);
     const worktreePath = useSessionUIStore((s) => currentSessionId ? s.worktreeMetadata.get(currentSessionId)?.path : undefined);
     const fallbackDirectory = useDirectoryStore((s) => s.currentDirectory);
@@ -89,7 +89,7 @@ export const useEffectiveDirectory = (): string | undefined => {
     return pickEffectiveDirectory({
         currentSessionId,
         newSessionDraft,
-        currentSessionDirectory,
+        currentSessionDirectory: currentSessionDirectory ?? (selectedSessionDirectory || undefined),
         worktreeAttachment,
         worktreePath,
         fallbackDirectory,
@@ -111,9 +111,10 @@ export const resolveEffectiveDirectory = (): string | undefined => {
     return pickEffectiveDirectory({
         currentSessionId,
         newSessionDraft: sessionUI.newSessionDraft,
-        // Same source as useSessionDirectory: the session record's own directory.
+        // Same source as useSessionDirectory: the session record's own directory,
+        // falling back to the selected session directory before its store bootstraps.
         currentSessionDirectory: currentSessionId
-            ? getAllSyncSessionMap().get(currentSessionId)?.directory
+            ? getAllSyncSessionMap().get(currentSessionId)?.directory ?? (sessionUI.currentSessionDirectory || undefined)
             : undefined,
         worktreeAttachment: currentSessionId
             ? useSessionWorktreeStore.getState().getAttachment(currentSessionId)

@@ -18,14 +18,15 @@ import { useUIStore } from '@/stores/useUIStore';
 import { useSessionUIStore } from '@/sync/session-ui-store';
 import { useSessionWorktreeStore } from '@/sync/session-worktree-store';
 import { formatSessionWorktreeBadge } from '@/sync/session-worktree-contract';
-import { useGlobalSessionStatus } from '@/sync/sync-context';
+import { useGlobalSessionStatus, useSessionDirectory } from '@/sync/sync-context';
 import { useDirectoryStore as useAppDirectoryStore } from '@/stores/useDirectoryStore';
 import { isChatDirectoryForHome } from '@/lib/chatDirectories';
 import { useSessionMessageRecordsForExport } from '@/sync/use-sync';
 import { useProjectsStore } from '@/stores/useProjectsStore';
+import { resolveProjectLabelForDirectory } from '@/lib/projectResolution';
 import { useQuotaAutoRefresh, useQuotaStore } from '@/stores/useQuotaStore';
 import { useGitBranchLabel } from '@/stores/useGitStore';
-import { useGlobalSessionsStore } from '@/stores/useGlobalSessionsStore';
+import { resolveGlobalSessionDirectory, useGlobalSessionsStore } from '@/stores/useGlobalSessionsStore';
 import { archiveUndoToastOptions, collectSessionMoveDescendants, collectSessionSubtreeIds } from '@/components/session/sidebar/sessions/sessionSubtreeActions';
 import { streamPerfCount } from '@/stores/utils/streamDebug';
 
@@ -39,6 +40,7 @@ import {
 
 import {
 } from '@/components/ui/collapsible';
+import { useSpaceProjectDirectory } from '@/lib/spaces/spaces-store';
 import { useDraftSpaceTarget } from '@/lib/spaces/useDraftSpaceTarget';
 import { panelContentDirectory } from '@/lib/spaces/space-creation-requests';
 import { SessionSwitcherDropdown } from '@/components/session/SessionSwitcherDropdown';
@@ -111,7 +113,7 @@ export const Header: React.FC = () => {
       const record = session as typeof session & { directory?: string | null; slug?: string | null };
       return {
         title: session.title ?? null,
-        directory: record.directory ?? null,
+        directory: resolveGlobalSessionDirectory(session),
         created: session.time?.created ?? null,
         slug: record.slug ?? null,
         parentId: session.parentID ?? null,
@@ -119,26 +121,6 @@ export const Header: React.FC = () => {
     },
     [currentSessionId],
   )));
-  const activeProject = useProjectsStore(useShallow((state) => {
-    if (!state.activeProjectId) {
-      return null;
-    }
-    const project = state.projects.find((candidate) => candidate.id === state.activeProjectId);
-    return project ? { id: project.id, path: project.path, label: project.label } : null;
-  }));
-  const activeProjectLabel = React.useMemo(() => {
-    if (!activeProject) {
-      return null;
-    }
-
-    const trimmedLabel = activeProject.label?.trim();
-    if (trimmedLabel) {
-      return trimmedLabel;
-    }
-
-    const pathSegments = activeProject.path.split(/[\\/]/).filter(Boolean);
-    return pathSegments[pathSegments.length - 1] ?? null;
-  }, [activeProject]);
   const loadQuotaSettings = useQuotaStore((state) => state.loadSettings);
 
   const { isMobile } = useDeviceInfo();
@@ -337,10 +319,13 @@ export const Header: React.FC = () => {
     return normalize(worktreePath || '');
   }, [worktreePath]);
 
+  const selectedSessionDirectory = useSessionUIStore((state) => state.currentSessionDirectory);
+  const liveSessionDirectory = useSessionDirectory(currentSessionId ?? null, selectedSessionDirectory ?? undefined);
   const sessionDirectory = React.useMemo(() => {
-    const raw = typeof currentSession?.directory === 'string' ? currentSession.directory : '';
-    return normalize(raw || '');
-  }, [currentSession?.directory]);
+    if (!currentSessionId) return '';
+    const raw = currentSession?.directory || liveSessionDirectory || selectedSessionDirectory || '';
+    return normalize(raw);
+  }, [currentSession?.directory, currentSessionId, liveSessionDirectory, selectedSessionDirectory]);
   const isCurrentSessionAiRenaming = useIsSessionAiRenamePending(currentSessionId ?? '', sessionDirectory);
 
   const draftDirectory = useSessionUIStore((state) => {
@@ -351,15 +336,32 @@ export const Header: React.FC = () => {
   });
   const draftTarget = useSessionUIStore((state) => state.newSessionDraft.target);
   const draftProjectId = useSessionUIStore((state) => state.newSessionDraft.selectedProjectId);
-  const selectedSessionDirectory = useSessionUIStore((state) => state.currentSessionDirectory);
   const homeDirectory = useAppDirectoryStore((state) => state.homeDirectory);
 
   // A draft waiting for a new space shows the space's branch and actions once it runs, and none
   // of this computer's while it is made.
   const draftSpace = useDraftSpaceTarget();
   const openDirectory = React.useMemo(() => {
+    if (!isNewSessionDraftOpen && currentSessionId) {
+      return worktreeDirectory || sessionDirectory;
+    }
     return worktreeDirectory || sessionDirectory || (panelContentDirectory(draftSpace, draftDirectory) ?? '');
-  }, [draftDirectory, draftSpace, sessionDirectory, worktreeDirectory]);
+  }, [currentSessionId, draftDirectory, draftSpace, isNewSessionDraftOpen, sessionDirectory, worktreeDirectory]);
+
+  const availableWorktreesByProject = useSessionUIStore((state) => state.availableWorktreesByProject);
+  const spaceProjectDirectory = useSpaceProjectDirectory(openDirectory || null);
+  const activeProjectLabel = useProjectsStore(
+    React.useCallback((state) => resolveProjectLabelForDirectory({
+      projects: state.projects,
+      availableWorktreesByProject,
+      directory: openDirectory || null,
+      spaceProjectDirectory,
+      activeProjectId: state.activeProjectId,
+      isDraftOpen: isNewSessionDraftOpen,
+      draftTarget,
+      draftProjectId,
+    }), [availableWorktreesByProject, draftProjectId, draftTarget, isNewSessionDraftOpen, openDirectory, spaceProjectDirectory]),
+  );
 
   const catalogWorktreeBranch = useSessionUIStore((state) => {
     const candidateDirectory = normalize(worktreeDirectory || sessionDirectory || '');
